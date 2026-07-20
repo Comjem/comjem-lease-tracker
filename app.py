@@ -1,11 +1,16 @@
-from flask import Flask, jsonify, request, send_from_directory
+bash
+
+cat /home/claude/comjem_app/app.py
+Output
+
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import json, os, sqlite3, datetime
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__)
 CORS(app)
 
-DB = os.path.join(os.path.dirname(__file__), 'leases.db')
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'leases.db')
 
 def get_db():
     conn = sqlite3.connect(DB)
@@ -25,10 +30,10 @@ def init_db():
         notes TEXT,
         updated_at TEXT
     )''')
-    # Seed with initial data if empty
+    conn.commit()
     count = conn.execute('SELECT COUNT(*) FROM leases').fetchone()[0]
     if count == 0:
-        seed_file = os.path.join(os.path.dirname(__file__), 'seed.json')
+        seed_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'seed.json')
         if os.path.exists(seed_file):
             with open(seed_file) as f:
                 leases = json.load(f)
@@ -43,9 +48,15 @@ def init_db():
             conn.commit()
     conn.close()
 
+init_db()
+
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'index.html')
+    if os.path.exists(html_path):
+        with open(html_path, encoding='utf-8') as f:
+            return Response(f.read(), mimetype='text/html')
+    return Response('<h2>App is running. Static files not found.</h2>', mimetype='text/html')
 
 @app.route('/api/leases', methods=['GET'])
 def get_leases():
@@ -90,13 +101,5 @@ def delete_lease(lid):
     conn.close()
     return jsonify({'ok': True})
 
-@app.route('/api/export')
-def export():
-    conn = get_db()
-    rows = conn.execute('SELECT * FROM leases ORDER BY exp_sort').fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
 if __name__ == '__main__':
-    init_db()
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
