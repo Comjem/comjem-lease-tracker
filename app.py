@@ -1,7 +1,3 @@
-bash
-
-cat /home/claude/comjem_app/app.py
-Output
 
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
