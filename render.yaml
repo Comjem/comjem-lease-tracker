@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: comjem-lease-tracker
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python -c "from app import init_db; init_db()"
+    startCommand: gunicorn app:app --preload
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

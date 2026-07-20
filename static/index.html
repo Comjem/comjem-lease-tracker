@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Comjem Lease Tracker</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#eef0f4;color:#1a1a2e;font-size:14px}.hdr{background:linear-gradient(135deg,#1a2744 0%,#243660 100%);color:#fff;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.2)}.hdr h1{font-size:21px;font-weight:800}.hdr h1 em{color:#c9a84c;font-style:normal}.hdr p{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}.hdr-btns{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;line-height:1;white-space:nowrap;transition:filter .15s}.btn:hover{filter:brightness(90%)}.btn:disabled{opacity:.4;cursor:not-allowed}.btn-gold{background:#c9a84c;color:#fff}.btn-excel{background:#1e6f3e;color:#fff}.btn-ghost{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.22)}.btn-del{background:#fdecea;color:#c0392b;border:1px solid #f5c6c2}.btn-save{background:#1a2744;color:#fff}.btn-out{background:#fff;color:#1a2744;border:1.5px solid #d0d5e0}.btn-sm{padding:5px 10px;font-size:12px;font-weight:500}.stats{display:flex;gap:10px;padding:18px 28px;flex-wrap:wrap;background:#fff;border-bottom:1px solid #e0e4ec}.card{flex:1;min-width:105px;max-width:210px;padding:13px 16px;border-radius:10px}.card-total{background:#1a2744;color:#fff}.card-red{background:#fff1f0;border:1px solid #fcd3cf}.card-yel{background:#fffbe6;border:1px solid #ffe58f}.card-grn{background:#f0fdf4;border:1px solid #b7ebcb}.card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;opacity:.65}.card-total .card-lbl{color:#fff;opacity:.7}.card-val{font-size:26px;font-weight:800;margin-top:3px;line-height:1}.card-total .card-val{color:#fff}.card-red .card-val{color:#c0392b}.card-yel .card-val{color:#b7820a}.card-grn .card-val{color:#1e8449}.card-desc{font-size:11px;margin-top:2px;opacity:.55}.card-total .card-desc{color:#fff}.legend{display:flex;align-items:center;gap:18px;padding:9px 28px;background:#fff;border-bottom:1px solid #e0e4ec;font-size:12px;color:#555;flex-wrap:wrap}.leg{display:flex;align-items:center;gap:5px;font-weight:500}.leg-dot{width:10px;height:10px;border-radius:3px}.leg-note{color:#aaa;font-size:11px;margin-left:auto}.ctrl{display:flex;gap:8px;padding:12px 28px;background:#fff;border-bottom:1px solid #e0e4ec;flex-wrap:wrap;align-items:center}.ac-wrap{position:relative;flex:1;min-width:200px;max-width:360px}.ac-wrap input{width:100%;padding:9px 12px 9px 34px;border:1.5px solid #d0d5e0;border-radius:7px;font-size:13px;outline:none;font-family:inherit;background:#f7f8fa}.ac-wrap input:focus{border-color:#1a2744;background:#fff}.srch-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#aab;pointer-events:none;font-size:15px}.ac-list{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #1a2744;border-radius:7px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;max-height:260px;overflow-y:auto}.ac-list.open{display:block}.ac-item{padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0}.ac-item:last-child{border-bottom:none}.ac-item:hover,.ac-item.active{background:#eef3fb;font-weight:600}.ac-item em{font-style:normal;color:#c9a84c;font-weight:700}select{padding:9px 12px;border:1.5px solid #d0d5e0;border-radius:7px;font-size:13px;background:#f7f8fa;outline:none;cursor:pointer;font-family:inherit}select:focus{border-color:#1a2744}.btn-clear{background:#fff;color:#888;border:1.5px solid #d0d5e0;padding:9px 14px;font-size:13px;border-radius:7px;cursor:pointer;font-weight:500;margin-left:auto}.btn-clear:hover{background:#f7f8fa;color:#1a2744;border-color:#1a2744}.sync-bar{padding:6px 28px;background:#f0fdf4;border-bottom:1px solid #b7ebcb;font-size:12px;color:#1e8449;display:flex;align-items:center;gap:8px}.sync-bar.err{background:#fff1f0;border-color:#fcd3cf;color:#c0392b}.cbar{padding:7px 28px;font-size:12px;color:#777;background:#f7f8fa;border-bottom:1px solid #e0e4ec}.cbar strong{color:#1a2744}.twrap{padding:18px 28px 40px}.tbox{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,.08);overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:520px}thead tr{background:#1a2744}thead th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;cursor:pointer;user-select:none;border-right:1px solid rgba(255,255,255,.07)}thead th:last-child{border-right:none;cursor:default}thead th:not(:last-child):hover{background:#253566;color:#fff}thead th.sorted{color:#c9a84c}tbody tr{border-bottom:1px solid #eef0f4}tbody tr:last-child{border-bottom:none}tbody tr:hover td{background:#f5f7fb}td{padding:12px 14px;vertical-align:middle}.row-red{border-left:4px solid #e74c3c}.row-yel{border-left:4px solid #f1c40f}.row-grn{border-left:4px solid #2ecc71}.tname{font-weight:600;font-size:13.5px;color:#1a1a2e;line-height:1.3;max-width:230px;word-break:break-word}.dest{font-size:10px;color:#ccc;margin-left:3px;font-weight:400}.taddr{font-size:12.5px;color:#666;line-height:1.4;max-width:230px;word-break:break-word}.texp{font-size:13px;font-weight:600;white-space:nowrap}.pill{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:50px;font-weight:700;white-space:nowrap}.pill-n{font-size:16px;font-weight:800}.pill-lbl{font-size:10px;font-weight:700;opacity:.7;text-transform:uppercase;letter-spacing:.4px}.pill-red{background:#fdecea;color:#c0392b}.pill-yel{background:#fefce8;color:#b7820a}.pill-grn{background:#eafaf1;color:#1e8449}.acts{display:flex;gap:5px;align-items:center;white-space:nowrap}.empty{text-align:center;padding:60px 24px;color:#bbb}.ovl{display:none;position:fixed;inset:0;background:rgba(10,15,30,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}.ovl.open{display:flex}.modal{background:#fff;border-radius:12px;padding:26px;width:100%;max-width:455px;max-height:92vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}.modal h2{font-size:16px;font-weight:800;color:#1a2744;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid #eef0f4}.fg{margin-bottom:14px}.fg label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999;margin-bottom:4px}.fg input,.fg select,.fg textarea{width:100%;padding:8px 11px;border:1.5px solid #e0e4ec;border-radius:7px;font-size:13px;outline:none;font-family:inherit}.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#1a2744}.fg textarea{resize:vertical;min-height:60px}.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #eef0f4}.conf{background:#fff;border-radius:12px;padding:28px;max-width:330px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.22)}.conf h3{color:#1a2744;margin-bottom:8px}.conf p{color:#777;font-size:13px;margin-bottom:18px;line-height:1.5}.conf-acts{display:flex;gap:10px;justify-content:center}.toast{position:fixed;bottom:22px;right:22px;background:#1a2744;color:#fff;padding:11px 18px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s,transform .3s;transform:translateY(8px);z-index:9999;pointer-events:none}.toast.show{opacity:1;transform:translateY(0)}</style>
+</head>
+<body>
+<div class="hdr">
+  <div><h1>Comjem <em>Lease Tracker</em></h1><p id="liveDate"></p></div>
+  <div class="hdr-btns">
+    <button class="btn btn-gold" id="btnAdd">+ Add Lease</button>
+    <button class="btn btn-excel" id="btnXlsx">&#128196; Export to Excel</button>
+    <button class="btn btn-ghost" id="btnRefresh">&#8635; Refresh</button>
+  </div>
+</div>
+<div class="stats" id="stats"></div>
+<div class="legend">
+  <span class="leg"><span class="leg-dot" style="background:#e74c3c"></span>Expiring &lt;6 months</span>
+  <span class="leg"><span class="leg-dot" style="background:#f1c40f"></span>6 months &ndash; 1 year</span>
+  <span class="leg"><span class="leg-dot" style="background:#2ecc71"></span>1+ year remaining</span>
+  <span class="leg-note">[est.] = date derived from rent schedule</span>
+</div>
+<div class="sync-bar" id="syncBar">&#9679; Connecting...</div>
+<div class="ctrl">
+  <div class="ac-wrap" id="acWrap">
+    <span class="srch-ico">&#128269;</span>
+    <input type="text" id="q" placeholder="Search tenant or address&hellip;" autocomplete="off">
+    <div class="ac-list" id="acList"></div>
+  </div>
+  <select id="fStatus">
+    <option value="">All leases</option>
+    <option value="red">&#128308; Expiring &lt;6 months</option>
+    <option value="yel">&#128993; 6 months &ndash; 1 year</option>
+    <option value="grn">&#128994; 1+ year remaining</option>
+  </select>
+  <select id="fBuilding"><option value="">All buildings</option></select>
+  <button class="btn-clear" id="btnClear">&#10005; Clear filters</button>
+</div>
+<div class="cbar" id="cbar">Loading...</div>
+<div class="twrap"><div class="tbox">
+  <table>
+    <thead><tr>
+      <th data-col="tenant">Tenant</th>
+      <th data-col="address">Address</th>
+      <th data-col="expiration">Expiration Date</th>
+      <th data-col="days">Days Remaining</th>
+      <th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div></div>
+<div class="ovl" id="ovlEdit">
+  <div class="modal">
+    <h2 id="mTitle">Add Lease</h2>
+    <div class="fg"><label>Tenant Name *</label><input type="text" id="mTenant"></div>
+    <div class="fg"><label>Address</label><input type="text" id="mAddr"></div>
+    <div class="fg"><label>Building / LLC</label><input type="text" id="mBldg"></div>
+    <div class="fg"><label>Expiration Date</label><input type="date" id="mExp"></div>
+    <div class="fg"><label>Source</label>
+      <select id="mSrc">
+        <option value="E">Explicit - stated in lease</option>
+        <option value="D">Estimated - derived from rent schedule</option>
+        <option value="manual">Manual entry</option>
+      </select>
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="mNotes"></textarea></div>
+    <div class="mfoot">
+      <button class="btn btn-out" id="btnMCancel">Cancel</button>
+      <button class="btn btn-save" id="btnMSave">Save Lease</button>
+    </div>
+  </div>
+</div>
+<div class="ovl" id="ovlDel">
+  <div class="conf">
+    <h3>Remove This Lease?</h3>
+    <p>It will be permanently deleted for everyone.</p>
+    <div class="conf-acts">
+      <button class="btn btn-out" id="btnDelCancel">Cancel</button>
+      <button class="btn btn-del" id="btnDelOk">&#10005; Remove</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+var DATA=[],editId=null,delId=null,sCol='expiration',sDir=1,acActive=-1,ttTimer;
+function today(){var t=new Date();t.setHours(0,0,0,0);return t;}
+function daysLeft(s){if(!s)return null;var iso=toISO(s);if(!iso)return null;var p=iso.split('-');if(p.length!==3)return null;return Math.round((new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10))-today())/864e5);}
+function tier(d){if(d===null)return'grn';if(d<=182)return'red';if(d<=365)return'yel';return'grn';}
+function toISO(s){if(!s)return'';if(s.length===10&&s.charAt(4)==='-')return s;var p=s.split('/');if(p.length===3)return p[2]+'-'+(p[0].length<2?'0':'')+p[0]+'-'+(p[1].length<2?'0':'')+p[1];return s;}
+function fromISO(s){if(!s)return'';var p=s.split('-');if(p.length===3)return p[1]+'/'+p[2]+'/'+p[0];return s;}
+function fmtDate(s){if(!s)return'&mdash;';var p=s.split('/');if(p.length!==3)return s;var mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return mn[parseInt(p[0],10)-1]+' '+parseInt(p[1],10)+', '+p[2];}
+function fmtToday(){var t=new Date();var mn=['January','February','March','April','May','June','July','August','September','October','November','December'];var dn=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];return dn[t.getDay()]+', '+mn[t.getMonth()]+' '+t.getDate()+', '+t.getFullYear();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setSyncBar(ok,msg){var b=document.getElementById('syncBar');b.textContent=msg;b.className='sync-bar'+(ok?'':' err');}
+async function loadData(){
+  try{
+    setSyncBar(true,'Loading...');
+    var resp=await fetch('/api/leases');
+    DATA=await resp.json();
+    setSyncBar(true,'● Live — '+DATA.length+' leases — changes save for everyone instantly');
+    populateBuildings();render();renderStats();
+  }catch(e){setSyncBar(false,'● Offline — could not connect. Retrying...');setTimeout(loadData,5000);}
+}
+function renderStats(){
+  var c={red:0,yel:0,grn:0};
+  DATA.forEach(function(l){c[tier(daysLeft(l.expiration))]++;});
+  document.getElementById('stats').innerHTML='<div class="card card-total"><div class="card-lbl">Total Active Leases</div><div class="card-val">'+DATA.length+'</div><div class="card-desc">All Comjem properties</div></div><div class="card card-red"><div class="card-lbl">&#9888; Expiring Soon</div><div class="card-val">'+c.red+'</div><div class="card-desc">Less than 6 months</div></div><div class="card card-yel"><div class="card-lbl">Watch List</div><div class="card-val">'+c.yel+'</div><div class="card-desc">6–12 months</div></div><div class="card card-grn"><div class="card-lbl">Good Standing</div><div class="card-val">'+c.grn+'</div><div class="card-desc">1+ year remaining</div></div>';
+}
+function populateBuildings(){
+  var seen={},sel=document.getElementById('fBuilding');
+  while(sel.options.length>1)sel.remove(1);
+  DATA.forEach(function(l){var a=(l.address||'').split(',')[0].trim();if(a&&!seen[a]){seen[a]=1;}});
+  Object.keys(seen).sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});
+}
+function render(){
+  var q=(document.getElementById('q').value||'').toLowerCase().trim();
+  var fu=document.getElementById('fStatus').value;
+  var fb=document.getElementById('fBuilding').value;
+  var rows=DATA.filter(function(l){
+    if(q){var h=((l.tenant||'')+' '+(l.address||'')+' '+(l.notes||'')).toLowerCase();if(h.indexOf(q)===-1)return false;}
+    if(fu!==''&&tier(daysLeft(l.expiration))!==fu)return false;
+    if(fb!==''&&(l.address||'').split(',')[0].trim()!==fb)return false;
+    return true;
+  });
+  rows.sort(function(a,b){var va,vb;if(sCol==='expiration'||sCol==='days'){va=toISO(a.expiration)||'9999-99-99';vb=toISO(b.expiration)||'9999-99-99';}else{va=(a[sCol]||'').toLowerCase();vb=(b[sCol]||'').toLowerCase();}return va<vb?-sDir:va>vb?sDir:0;});
+  document.getElementById('cbar').innerHTML='Showing <strong>'+rows.length+'</strong> of <strong>'+DATA.length+'</strong> leases'+(rows.length<DATA.length?' &mdash; <span style="color:#c9a84c;font-weight:600">'+(DATA.length-rows.length)+' hidden by filters</span>':'')+' &nbsp;<span style="color:#aaa;font-size:11px">Days calculated live as of today</span>';
+  var tbody=document.getElementById('tbody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty"><div style="font-size:36px;margin-bottom:8px">&#128203;</div><div style="font-size:15px;font-weight:600;color:#666">No leases match</div><p style="font-size:13px;margin-top:4px">Adjust your search or filters</p></div></td></tr>';return;}
+  var out='';
+  for(var i=0;i<rows.length;i++){
+    var l=rows[i],d=daysLeft(l.expiration),t=tier(d);
+    var est=(l.source==='D')?'<span class="dest">[est.]</span>':'';
+    var pill;
+    if(d===null)pill='<span style="color:#bbb">No date</span>';
+    else if(d<0)pill='<span class="pill pill-red"><span class="pill-n">Expired</span></span>';
+    else if(d===0)pill='<span class="pill pill-red"><span class="pill-n">Today</span></span>';
+    else pill='<span class="pill pill-'+t+'"><span class="pill-n">'+d.toLocaleString()+'</span><span class="pill-lbl"> days</span></span>';
+    var id=esc(l.id);
+    out+='<tr class="row-'+t+'"><td><div class="tname">'+esc(l.tenant)+est+'</div></td><td><div class="taddr">'+esc(l.address||'')+'</div></td><td><div class="texp">'+fmtDate(l.expiration)+'</div></td><td>'+pill+'</td><td><div class="acts"><button class="btn btn-sm btn-out" data-edit="'+id+'">&#9998; Edit</button> <button class="btn btn-sm btn-del" data-del="'+id+'">&#10005;</button></div></td></tr>';
+  }
+  tbody.innerHTML=out;
+}
+function initSort(){document.querySelectorAll('thead th[data-col]').forEach(function(th){th.addEventListener('click',function(){var col=this.getAttribute('data-col');document.querySelectorAll('thead th').forEach(function(h){h.classList.remove('sorted');});if(sCol===col){sDir*=-1;}else{sCol=col;sDir=1;}this.classList.add('sorted');render();});});}
+function acShow(val){var list=document.getElementById('acList');val=val.toLowerCase().trim();if(!val){acHide();return;}var matches=[],seen={};DATA.forEach(function(l){var addr=(l.address||'').split(',')[0].trim();if(addr&&addr.toLowerCase().indexOf(val)!==-1&&!seen[addr]){seen[addr]=1;matches.push(addr);}if(l.tenant&&l.tenant.toLowerCase().indexOf(val)!==-1&&!seen[l.tenant]){seen[l.tenant]=1;matches.push(l.tenant);}});matches=matches.slice(0,8);if(!matches.length){acHide();return;}list.innerHTML=matches.map(function(m){var lo=m.toLowerCase(),idx=lo.indexOf(val.toLowerCase());var label=idx>=0?esc(m.slice(0,idx))+'<em>'+esc(m.slice(idx,idx+val.length))+'</em>'+esc(m.slice(idx+val.length)):esc(m);return'<div class="ac-item" data-val="'+esc(m)+'">'+label+'</div>';}).join('');list.classList.add('open');acActive=-1;}
+function acHide(){document.getElementById('acList').classList.remove('open');acActive=-1;}
+function acSelect(val){document.getElementById('q').value=val;acHide();render();}
+function openEdit(id){var l=id?DATA.filter(function(x){return x.id===id;})[0]:null;editId=id||null;document.getElementById('mTitle').textContent=id?'Edit Lease':'Add Lease';document.getElementById('mTenant').value=l?l.tenant:'';document.getElementById('mAddr').value=l?(l.address||''):'';document.getElementById('mBldg').value=l?(l.building||''):'';document.getElementById('mExp').value=l?toISO(l.expiration||''):'';document.getElementById('mSrc').value=l?(l.source||'manual'):'manual';document.getElementById('mNotes').value=l?(l.notes||''):'';document.getElementById('ovlEdit').classList.add('open');setTimeout(function(){document.getElementById('mTenant').focus();},60);}
+function closeEdit(){document.getElementById('ovlEdit').classList.remove('open');editId=null;}
+async function saveLease(){var tenant=document.getElementById('mTenant').value.trim();if(!tenant){toast('Tenant name is required.');return;}var expISO=document.getElementById('mExp').value;var rec={id:editId||('l_'+Date.now()),tenant:tenant,address:document.getElementById('mAddr').value.trim(),building:document.getElementById('mBldg').value.trim(),expiration:expISO?fromISO(expISO):'',exp_sort:expISO?expISO.replace(/-/g,''):'99999999',source:document.getElementById('mSrc').value,notes:document.getElementById('mNotes').value.trim()};try{if(editId){await fetch('/api/leases/'+editId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});}else{await fetch('/api/leases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});}closeEdit();await loadData();toast(editId?'Lease updated.':'Lease added.');}catch(e){toast('Error saving: '+e.message);}}
+function openDel(id){delId=id;document.getElementById('ovlDel').classList.add('open');}
+function closeDel(){document.getElementById('ovlDel').classList.remove('open');delId=null;}
+async function doDelete(){try{await fetch('/api/leases/'+delId,{method:'DELETE'});closeDel();await loadData();toast('Lease removed.');}catch(e){toast('Error: '+e.message);}}
+function doExportExcel(){var rows=[['Tenant','Address','Expiration Date','Days Remaining','Status','Source','Notes']];DATA.slice().sort(function(a,b){var va=toISO(a.expiration)||'9999';var vb=toISO(b.expiration)||'9999';return va<vb?-1:va>vb?1:0;}).forEach(function(l){var d=daysLeft(l.expiration),t=tier(d);var st=d===null?'No Date':d<0?'EXPIRED':t==='red'?'EXPIRING SOON':t==='yel'?'Watch List':'Good Standing';rows.push([l.tenant||'',l.address||'',l.expiration||'',d===null?'':d<0?'EXPIRED':String(d),st,l.source==='E'?'Explicit':l.source==='D'?'Estimated':'Manual',l.notes||'']);});var lines=[];for(var r=0;r<rows.length;r++){var cells=[];for(var c=0;c<rows[r].length;c++){var v=String(rows[r][c]).replace(/"/g,'""');if(v.indexOf(',')!==-1||v.indexOf('"')!==-1)v='"'+v+'"';cells.push(v);}lines.push(cells.join(','));}var blob=new Blob(['﻿'+lines.join('
+')],{type:'text/csv;charset=utf-8'});var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Comjem_Leases_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);toast('Excel file downloaded.');}
+var ttTimer2;function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(ttTimer2);ttTimer2=setTimeout(function(){e.classList.remove('show');},3400);}
+function scheduleRefresh(){var now=new Date(),ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)-now;setTimeout(function(){render();renderStats();document.getElementById('liveDate').textContent=fmtToday();scheduleRefresh();},ms+500);}
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('liveDate').textContent=fmtToday();
+  scheduleRefresh();loadData();
+  setInterval(loadData,30000);
+  initSort();
+  document.getElementById('btnAdd').addEventListener('click',function(){openEdit(null);});
+  document.getElementById('btnRefresh').addEventListener('click',loadData);
+  document.getElementById('btnXlsx').addEventListener('click',doExportExcel);
+  document.getElementById('q').addEventListener('input',function(){acShow(this.value);render();});
+  document.getElementById('q').addEventListener('keydown',function(e){var items=document.getElementById('acList').querySelectorAll('.ac-item');if(e.key==='ArrowDown'){e.preventDefault();acActive=Math.min(acActive+1,items.length-1);items.forEach(function(x,i){x.classList.toggle('active',i===acActive);});}else if(e.key==='ArrowUp'){e.preventDefault();acActive=Math.max(acActive-1,-1);items.forEach(function(x,i){x.classList.toggle('active',i===acActive);});}else if(e.key==='Enter'){e.preventDefault();if(acActive>=0&&items[acActive])acSelect(items[acActive].getAttribute('data-val'));else{acHide();render();}}else if(e.key==='Escape')acHide();});
+  document.getElementById('acList').addEventListener('click',function(e){var item=e.target.closest('.ac-item');if(item)acSelect(item.getAttribute('data-val'));});
+  document.addEventListener('click',function(e){if(!document.getElementById('acWrap').contains(e.target))acHide();});
+  document.getElementById('fStatus').addEventListener('change',render);
+  document.getElementById('fBuilding').addEventListener('change',render);
+  document.getElementById('btnClear').addEventListener('click',function(){document.getElementById('q').value='';document.getElementById('fStatus').selectedIndex=0;document.getElementById('fBuilding').selectedIndex=0;acHide();render();});
+  document.getElementById('btnMCancel').addEventListener('click',closeEdit);
+  document.getElementById('btnMSave').addEventListener('click',saveLease);
+  document.getElementById('btnDelCancel').addEventListener('click',closeDel);
+  document.getElementById('btnDelOk').addEventListener('click',doDelete);
+  document.getElementById('ovlEdit').addEventListener('click',function(e){if(e.target===this)closeEdit();});
+  document.getElementById('ovlDel').addEventListener('click',function(e){if(e.target===this)closeDel();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeEdit();closeDel();acHide();}});
+  document.getElementById('tbody').addEventListener('click',function(e){var eb=e.target.closest('[data-edit]'),db=e.target.closest('[data-del]');if(eb)openEdit(eb.getAttribute('data-edit'));if(db)openDel(db.getAttribute('data-del'));});
+});
+</script>
+</body>
+</html>
