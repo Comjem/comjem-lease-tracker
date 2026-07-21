@@ -3,7 +3,7 @@ from flask_cors import CORS
 import json, os, sqlite3, datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 DB = '/tmp/leases.db'
 
@@ -37,6 +37,13 @@ def init_db():
 
 init_db()
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 @app.route('/')
 def index():
     html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'index.html')
@@ -45,8 +52,10 @@ def index():
             return Response(f.read(), mimetype='text/html')
     return Response('<h2>Static file not found</h2>', mimetype='text/html')
 
-@app.route('/api/leases', methods=['GET'])
+@app.route('/api/leases', methods=['GET','OPTIONS'])
 def get_leases():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
     conn = get_db()
     rows = conn.execute('SELECT * FROM leases ORDER BY exp_sort').fetchall()
     conn.close()
@@ -67,8 +76,10 @@ def add_lease():
     conn.close()
     return jsonify({'ok': True})
 
-@app.route('/api/leases/<lid>', methods=['PUT'])
+@app.route('/api/leases/<lid>', methods=['PUT','OPTIONS'])
 def update_lease(lid):
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
     data = request.json
     conn = get_db()
     conn.execute("""UPDATE leases SET tenant=?,address=?,building=?,
@@ -80,8 +91,10 @@ def update_lease(lid):
     conn.close()
     return jsonify({'ok': True})
 
-@app.route('/api/leases/<lid>', methods=['DELETE'])
+@app.route('/api/leases/<lid>', methods=['DELETE','OPTIONS'])
 def delete_lease(lid):
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
     conn = get_db()
     conn.execute('DELETE FROM leases WHERE id=?', (lid,))
     conn.commit()
