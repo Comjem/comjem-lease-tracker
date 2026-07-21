@@ -96,12 +96,17 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function setSyncBar(ok,msg){var b=document.getElementById('syncBar');b.textContent=msg;b.className='sync-bar'+(ok?'':' err');}
 async function loadData(){
   try{
-    setSyncBar(true,'Loading...');
+    setSyncBar(true,'Loading leases...');
     var resp=await fetch('/api/leases');
+    if(!resp.ok) throw new Error('Server returned '+resp.status);
     DATA=await resp.json();
+    if(!Array.isArray(DATA)) throw new Error('Invalid data format');
     setSyncBar(true,'● Live — '+DATA.length+' leases — changes save for everyone instantly');
     populateBuildings();render();renderStats();
-  }catch(e){setSyncBar(false,'● Offline — could not connect. Retrying...');setTimeout(loadData,5000);}
+  }catch(e){
+    setSyncBar(false,'● Error: '+e.message+' — retrying in 5s...');
+    setTimeout(loadData,5000);
+  }
 }
 function renderStats(){
   var c={red:0,yel:0,grn:0};
