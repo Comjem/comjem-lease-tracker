@@ -33,12 +33,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .leg-dot{width:10px;height:10px;border-radius:3px}
 .sync{padding:5px 28px;font-size:12px;background:#f0fdf4;border-bottom:1px solid #b7ebcb;color:#1e8449}
 .sync.err{background:#fff1f0;border-color:#fcd3cf;color:#c0392b}
+.sync.warn{background:#fffbe6;border-color:#ffe58f;color:#b7820a}
 .ctrl{display:flex;gap:8px;padding:10px 28px;background:#fff;border-bottom:1px solid #e0e4ec;flex-wrap:wrap;align-items:center}
 .ctrl input[type=text]{padding:8px 12px;border:1.5px solid #d0d5e0;border-radius:7px;font-size:13px;outline:none;font-family:inherit;min-width:200px;flex:1}
 .ctrl input[type=text]:focus{border-color:#1a2744}
 .ctrl select{padding:8px 12px;border:1.5px solid #d0d5e0;border-radius:7px;font-size:13px;background:#f7f8fa;outline:none;cursor:pointer;font-family:inherit}
 .ctrl select:focus{border-color:#1a2744}
-.ctrl .clr{background:#fff;color:#888;border:1.5px solid #d0d5e0;padding:8px 14px;font-size:13px;border-radius:7px;cursor:pointer;margin-left:auto}
+.clr{background:#fff;color:#888;border:1.5px solid #d0d5e0;padding:8px 14px;font-size:13px;border-radius:7px;cursor:pointer;margin-left:auto}
 .cbar{padding:6px 28px;font-size:12px;color:#777;background:#f7f8fa;border-bottom:1px solid #e0e4ec}
 .cbar strong{color:#1a2744}
 .wrap{padding:16px 28px 40px}
@@ -77,6 +78,8 @@ td{padding:11px 14px;vertical-align:middle}
 .conf-acts{display:flex;gap:10px;justify-content:center}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a2744;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s,transform .3s;transform:translateY(6px);z-index:9999;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -95,7 +98,7 @@ td{padding:11px 14px;vertical-align:middle}
   <span><span class="leg-dot" style="background:#2ecc71"></span>1+ year</span>
   <span style="margin-left:auto;color:#aaa;font-size:11px">[est.] = derived from rent schedule</span>
 </div>
-<div class="sync" id="sync">Connecting...</div>
+<div class="sync" id="sync">Connecting to Google Sheets...</div>
 <div class="ctrl">
   <input type="text" id="q" placeholder="Search tenant or address...">
   <select id="fStatus">
@@ -153,164 +156,165 @@ td{padding:11px 14px;vertical-align:middle}
 </div>
 <div class="toast" id="toast"></div>
 <script>
-var DATA=[],editId=null,delId=null,sCol='expiration',sDir=1,ttTimer;
+var SHEET_ID = "1QZw64DG-wablH6Bo9jbsfg2BrDWn7cbmLZXcMel0mUc";
+var API_KEY  = "AIzaSyDZOHL_iZRmNcCfS02Ddcox_O6BUumVI1Y";
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhStGWCxHOW2YYlF7owX7m6zcrVZyLvoBu3lIoUMvD9zF1mlW-oAUW99A0Bq8bbVkU8w/exec";
 
+var DATA=[],editId=null,delId=null,sCol="expiration",sDir=1,ttTimer;
+
+// ── Date helpers ──
 function today(){var t=new Date();t.setHours(0,0,0,0);return t;}
-
 function daysLeft(s){
   if(!s)return null;
-  var iso=toISO(s);
-  if(!iso)return null;
-  var p=iso.split('-');
-  if(p.length!==3)return null;
-  var d=new Date(+p[0],+p[1]-1,+p[2]);
-  return Math.round((d-today())/864e5);
+  var iso=toISO(s);if(!iso)return null;
+  var p=iso.split("-");if(p.length!==3)return null;
+  return Math.round((new Date(+p[0],+p[1]-1,+p[2])-today())/864e5);
 }
-
-function tier(d){
-  if(d===null)return 'grn';
-  if(d<=182)return 'red';
-  if(d<=365)return 'yel';
-  return 'grn';
-}
-
+function tier(d){if(d===null)return"grn";if(d<=182)return"red";if(d<=365)return"yel";return"grn";}
 function toISO(s){
-  if(!s)return '';
-  if(s.length===10&&s[4]==='-')return s;
-  var p=s.split('/');
-  if(p.length===3)return p[2]+'-'+(p[0].length<2?'0':'')+p[0]+'-'+(p[1].length<2?'0':'')+p[1];
+  if(!s)return"";
+  if(s.length===10&&s[4]==="-")return s;
+  var p=s.split("/");
+  if(p.length===3)return p[2]+"-"+(p[0].length<2?"0":"")+p[0]+"-"+(p[1].length<2?"0":"")+p[1];
   return s;
 }
-
-function fromISO(s){
-  if(!s)return '';
-  var p=s.split('-');
-  if(p.length===3)return p[1]+'/'+p[2]+'/'+p[0];
-  return s;
-}
-
+function fromISO(s){if(!s)return"";var p=s.split("-");if(p.length===3)return p[1]+"/"+p[2]+"/"+p[0];return s;}
 function fmtDate(s){
-  if(!s)return '-';
-  var p=s.split('/');
-  if(p.length!==3)return s;
-  var mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return mn[+p[0]-1]+' '+(+p[1])+', '+p[2];
+  if(!s)return"-";var p=s.split("/");if(p.length!==3)return s;
+  var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return mn[+p[0]-1]+" "+(+p[1])+", "+p[2];
 }
-
 function fmtToday(){
   var t=new Date();
-  var mn=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  var dn=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  return dn[t.getDay()]+', '+mn[t.getMonth()]+' '+t.getDate()+', '+t.getFullYear();
+  var mn=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var dn=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  return dn[t.getDay()]+", "+mn[t.getMonth()]+" "+t.getDate()+", "+t.getFullYear();
 }
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 
-function esc(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function setSyncBar(ok,msg){
-  var b=document.getElementById('sync');
-  b.textContent=msg;
-  b.className=ok?'sync':'sync err';
-}
-
+// ── Google Sheets read ──
 async function loadData(){
+  setSyncBar("warn","Loading from Google Sheets...");
   try{
-    setSyncBar(true,'Loading...');
-    var r=await fetch('/api/leases');
-    if(!r.ok)throw new Error('Status '+r.status);
-    DATA=await r.json();
-    setSyncBar(true,'Live - '+DATA.length+' leases - changes sync automatically');
-    populateBuildings();
-    render();
-    renderStats();
+    var url="https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+"/values/Sheet1!A:I?key="+API_KEY;
+    var r=await fetch(url);
+    var j=await r.json();
+    if(j.error)throw new Error(j.error.message);
+    var rows=j.values||[];
+    if(rows.length<=1){
+      // Sheet is empty - seed it
+      await seedSheet();
+      await loadData();
+      return;
+    }
+    // Skip header row, parse data
+    DATA=rows.slice(1).filter(function(r){return r[0];}).map(function(r){
+      return{
+        id:r[0]||"",tenant:r[1]||"",address:r[2]||"",building:r[3]||"",
+        expiration:r[4]||"",exp_sort:r[5]||"",source:r[6]||"",notes:r[7]||""
+      };
+    });
+    setSyncBar("ok","Connected to Google Sheets - "+DATA.length+" leases - changes sync for everyone");
+    populateBuildings();render();renderStats();
   }catch(e){
-    setSyncBar(false,'Connection error: '+e.message+' - retrying...');
+    setSyncBar("err","Error: "+e.message);
     setTimeout(loadData,5000);
   }
+}
+
+// ── Seed sheet with initial data ──
+async function seedSheet(){
+  if(!SCRIPT_URL){
+    setSyncBar("err","Apps Script URL not configured - read-only mode");
+    return;
+  }
+  setSyncBar("warn","Setting up sheet with lease data...");
+  var seed=[{"id":"l_1","tenant":"Integrative Peds Inc. (307)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"06/30/2026","exp_sort":"20260630","source":"E","notes":""},{"tenant":"Thomas Altmann & Emily Daniels (Apt 4)","address":"84 Franklin St, New York, NY 10013","expiration":"06/30/2026","exp_sort":"20260630","source":"E","notes":"","id":"l_2"},{"id":"l_3","tenant":"New York Iconic Cruises LLC (401)","address":"721 7th Ave, New York, NY 10019","building":"","expiration":"06/30/2026","exp_sort":"20260630","source":"D","notes":"Derived: short-term, 1 rent step 7/1/25 \u2192 ~2yr from commencement"},{"tenant":"Painting Lounge LLC (401)","address":"37-43 W 14th St, New York, NY 10011","expiration":"07/31/2026","exp_sort":"20260731","source":"E","notes":"","id":"l_4"},{"tenant":"B.F. National Bakery Inc. (ST03)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","expiration":"08/31/2026","exp_sort":"20260831","source":"E","notes":"","id":"l_5"},{"tenant":"H2EC Inc. (901 & 902)","address":"721 7th Ave, New York, NY 10019","expiration":"09/30/2026","exp_sort":"20260930","source":"E","notes":"","id":"l_6"},{"id":"l_7","tenant":"Eberjay Gansevoort Inc. (13GNS)","address":"652 Hudson St, New York, NY 10014","building":"","expiration":"09/30/2026","exp_sort":"20260930","source":"D","notes":"Derived: steps to 10/1/25 \u2192 exp 9/30/26"},{"tenant":"SANS NYC LLC (R5W)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"10/31/2026","exp_sort":"20261031","source":"E","notes":"","id":"l_8"},{"tenant":"Advanced Practice Group LLC (204)","address":"37-43 W 14th St, New York, NY 10011","expiration":"11/30/2026","exp_sort":"20261130","source":"E","notes":"","id":"l_9"},{"tenant":"Stephanie Leaf Physical Therapy PLLC (207)","address":"37-43 W 14th St, New York, NY 10011","expiration":"12/31/2026","exp_sort":"20261231","source":"E","notes":"","id":"l_10"},{"tenant":"CBS Outdoor Sign License (Remej)","address":"727 7th Ave, New York, NY 10036","expiration":"12/31/2026","exp_sort":"20261231","source":"E","notes":"","id":"l_11"},{"id":"l_12","tenant":"Jose Bonilla & Jaime Morban (Rm 210)","address":"724-748 Allerton Ave, Bronx, NY 10467","building":"","expiration":"01/31/2027","exp_sort":"20270131","source":"D","notes":"Derived: 2yr from commencement 2/15/2025"},{"tenant":"AT&T Mobility / New Cingular Wireless (144)","address":"144 Delancey St, New York, NY 10002","expiration":"02/28/2027","exp_sort":"20270228","source":"E","notes":"","id":"l_13"},{"tenant":"BeSure Home Health Training School (Rm 207)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"04/30/2027","exp_sort":"20270430","source":"E","notes":"","id":"l_14"},{"id":"l_15","tenant":"Gotham Holistic Inc. (502)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"09/30/2027","exp_sort":"20270930","source":"D","notes":"Last rent step 10/1/26 \u2192 exp 9/30/27"},{"tenant":"The Penthouse in Times Square LLC (13th Floor)","address":"721 7th Ave, New York, NY 10019","expiration":"09/30/2027","exp_sort":"20270930","source":"E","notes":"","id":"l_16"},{"tenant":"Medusa Distribution LLC (302)","address":"37-43 W 14th St, New York, NY 10011","expiration":"10/31/2027","exp_sort":"20271031","source":"E","notes":"","id":"l_17"},{"tenant":"The New York Sewing Center Inc. (R4W)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"12/31/2027","exp_sort":"20271231","source":"E","notes":"","id":"l_18"},{"tenant":"TD Bank (31-82 Steinway St)","address":"38-11 Broadway, Astoria, NY 11103","expiration":"12/31/2027","exp_sort":"20271231","source":"E","notes":"","id":"l_19"},{"tenant":"Chase Bank (ST06)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"01/31/2028","exp_sort":"20280131","source":"E","notes":"2nd extension option 2/1/23-1/31/28","id":"l_21"},{"tenant":"Max Rosin & Associates Inc. (304)","address":"37-43 W 14th St, New York, NY 10011","expiration":"03/31/2028","exp_sort":"20280331","source":"E","notes":"","id":"l_22"},{"tenant":"R.A. Travel Inc. (306)","address":"37-43 W 14th St, New York, NY 10011","expiration":"03/31/2028","exp_sort":"20280331","source":"E","notes":"","id":"l_23"},{"id":"l_25","tenant":"YLC Adult Day Care Center Inc. (201-11)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","building":"","expiration":"03/31/2028","exp_sort":"20280331","source":"D","notes":"Derived: steps to 4/1/27 \u2192 exp 3/31/28"},{"id":"l_26","tenant":"Zimmerman USA Inc. (664HUD)","address":"652 Hudson St, New York, NY 10014","building":"","expiration":"03/31/2028","exp_sort":"20280331","source":"D","notes":"Derived: steps to 4/1/27 \u2192 exp 3/31/28"},{"id":"l_27","tenant":"BAJAJ 1611 Food Mart Inc. (ST10)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","building":"","expiration":"04/30/2028","exp_sort":"20280430","source":"D","notes":"Derived: steps to 5/1/27 \u2192 exp 4/30/28"},{"tenant":"Andrew Radcliffe LLC (404)","address":"37-43 W 14th St, New York, NY 10011","expiration":"08/31/2028","exp_sort":"20280831","source":"E","notes":"","id":"l_29"},{"tenant":"Lizmar Tax Corp. (Rm 204)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"08/31/2028","exp_sort":"20280831","source":"E","notes":"","id":"l_30"},{"id":"l_31","tenant":"Tony Miller (3rd Floor - 167 W 48th)","address":"167 W 48th St, New York, NY 10036","building":"","expiration":"08/31/2028","exp_sort":"20280831","source":"D","notes":"Derived: steps to 9/1/27 \u2192 exp 8/31/28"},{"id":"l_32","tenant":"TIB General Merchandise Corp. (ST05A)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","building":"","expiration":"08/31/2028","exp_sort":"20280831","source":"D","notes":"Derived: steps to 9/1/27 \u2192 exp 8/31/28"},{"id":"l_33","tenant":"Fresh Farm & Fish Inc. (ST01 - 3488 Jerome)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","building":"","expiration":"09/30/2028","exp_sort":"20280930","source":"D","notes":"Derived: steps to 10/1/27 \u2192 exp 9/30/28"},{"id":"l_34","tenant":"RVN Foods Inc. D/B/A Dunkin (ST02 Stratford)","address":"1590-98 Westchester Ave, Bronx, NY 10472","building":"","expiration":"10/31/2028","exp_sort":"20281031","source":"D","notes":"Derived: 15yr from commencement 11/4/2013"},{"tenant":"S Squared Consulting Inc. (Rm 207)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"11/30/2028","exp_sort":"20281130","source":"E","notes":"","id":"l_35"},{"id":"l_36","tenant":"Soo Young Jung Nail Salon (Store 2)","address":"735 Sixth Ave, New York, NY 10010","building":"","expiration":"11/30/2028","exp_sort":"20281130","source":"D","notes":"Derived: last step 12/1/27 \u2192 exp 11/30/28"},{"tenant":"T-Mobile Northeast LLC (ST06/7/8)","address":"1590-98 Westchester Ave, Bronx, NY 10472","expiration":"12/31/2028","exp_sort":"20281231","source":"E","notes":"","id":"l_37"},{"tenant":"New Ranch Inc. (ST16 - 1619 Westchester)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"12/31/2028","exp_sort":"20281231","source":"E","notes":"","id":"l_38"},{"id":"l_39","tenant":"New York Wigs & Plus / Ombrella Group (ST01)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"02/28/2029","exp_sort":"20290228","source":"D","notes":"Derived: last rent step 3/1/28 \u2192 exp 2/28/29"},{"id":"l_40","tenant":"Squarrel Inc. D/B/A Squarrel Cafe (ST01)","address":"570-572 Atlantic Ave, Brooklyn, NY 11217","building":"","expiration":"03/31/2029","exp_sort":"20290331","source":"D","notes":"Derived: steps to 4/1/28 \u2192 exp 3/31/29"},{"id":"l_41","tenant":"MOTT CORNER INC (ST01 - 58 Kenmare)","address":"58 Kenmare St, New York, NY 10012","building":"","expiration":"03/31/2029","exp_sort":"20290331","source":"D","notes":"Derived: steps to 4/1/28 \u2192 exp 3/31/29"},{"id":"l_42","tenant":"Sunflower Day Spa Inc. (3rd Floor - 163 W 48th)","address":"163 W 48th St, New York, NY 10019","building":"","expiration":"03/31/2029","exp_sort":"20290331","source":"D","notes":"Derived: steps to 4/1/28 \u2192 exp 3/31/29"},{"tenant":"Active Health Chiropractic PLLC (507)","address":"37-43 W 14th St, New York, NY 10011","expiration":"04/30/2029","exp_sort":"20290430","source":"E","notes":"","id":"l_43"},{"tenant":"Lily Silk Inc. (660HUD)","address":"652 Hudson St, New York, NY 10014","expiration":"04/30/2029","exp_sort":"20290430","source":"E","notes":"","id":"l_44"},{"tenant":"Hot Studios New York LLC (406)","address":"37-43 W 14th St, New York, NY 10011","expiration":"05/31/2029","exp_sort":"20290531","source":"E","notes":"","id":"l_45"},{"tenant":"Ashley Salon (Rm 206)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"05/31/2029","exp_sort":"20290531","source":"E","notes":"","id":"l_46"},{"tenant":"Mathpix Inc. (Suite 101)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"05/31/2029","exp_sort":"20290531","source":"E","notes":"","id":"l_47"},{"tenant":"Nolita Pizza Inc. D/B/A Toscana Pizza (68 Kenmare)","address":"58 Kenmare St, New York, NY 10012","expiration":"05/31/2029","exp_sort":"20290531","source":"E","notes":"","id":"l_48"},{"tenant":"Lisa Jones Pilates Inc. (203)","address":"37-43 W 14th St, New York, NY 10011","expiration":"06/30/2029","exp_sort":"20290630","source":"E","notes":"","id":"l_49"},{"id":"l_50","tenant":"OCAMPO'S Enterprises LLC (ST01A)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","building":"","expiration":"06/30/2029","exp_sort":"20290630","source":"D","notes":"Derived: steps to 7/1/28 \u2192 exp 6/30/29"},{"tenant":"723 Life Inc. (2nd Floor Restaurant)","address":"721 7th Ave, New York, NY 10019","expiration":"07/31/2029","exp_sort":"20290731","source":"E","notes":"","id":"l_51"},{"tenant":"Sea & Sauce LLC (ST03)","address":"4363-73 White Plains Rd, Bronx, NY 10466","expiration":"07/31/2029","exp_sort":"20290731","source":"E","notes":"","id":"l_52"},{"tenant":"Green Star Deli Corp. (ST05)","address":"1631-1643 Westchester Ave, Bronx, NY 10472","expiration":"07/31/2029","exp_sort":"20290731","source":"E","notes":"","id":"l_53"},{"tenant":"Concord/Empire Beauty School Inc.","address":"38-11 Broadway, Astoria, NY 11103","expiration":"09/30/2029","exp_sort":"20290930","source":"E","notes":"","id":"l_54"},{"id":"l_55","tenant":"Bella Vista Optics Inc. (ST03)","address":"724-748 Allerton Ave, Bronx, NY 10467","building":"","expiration":"09/30/2029","exp_sort":"20290930","source":"D","notes":"Derived: 10yr from 10/1/2019"},{"id":"l_56","tenant":"Social House Caf\u00e9 LLC (ST04 East)","address":"60 Broadway, Brooklyn, NY 11249","building":"","expiration":"09/30/2029","exp_sort":"20290930","source":"D","notes":"Derived: last step 10/1/28 \u2192 exp 9/30/29"},{"tenant":"Namcoy LLC (R3)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"11/30/2029","exp_sort":"20291130","source":"E","notes":"","id":"l_57"},{"id":"l_58","tenant":"Audio User Experience LLC (303)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"11/30/2029","exp_sort":"20291130","source":"D","notes":"Derived: last rent step 12/1/28 \u2192 exp 11/30/29"},{"tenant":"Mario Borja D/B/A New Nacional Bakery (ST15)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"12/31/2029","exp_sort":"20291231","source":"E","notes":"","id":"l_59"},{"tenant":"Pharmacy Health Max 5th Ave Inc. (ST02)","address":"5313-5323 5th Ave, Brooklyn, NY 11220","expiration":"12/31/2029","exp_sort":"20291231","source":"E","notes":"","id":"l_60"},{"tenant":"NYS Office of Mental Health","address":"38-11 Broadway, Astoria, NY 11103","expiration":"12/31/2029","exp_sort":"20291231","source":"E","notes":"","id":"l_61"},{"id":"l_62","tenant":"TMDGNYC LLC (202)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"12/31/2029","exp_sort":"20291231","source":"D","notes":"Derived: annual rent steps, last step 1/1/29"},{"id":"l_63","tenant":"Blink Fitness (2nd Floor Roosevelt)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","building":"","expiration":"01/31/2030","exp_sort":"20300131","source":"D","notes":"Derived: steps to 2/1/29 \u2192 exp 1/31/30"},{"tenant":"Clear Wireless LLC / Sprint (LIC4)","address":"146 Delancey St, New York, NY 10018","expiration":"02/28/2030","exp_sort":"20300228","source":"D","notes":"2nd 5-year option period","id":"l_64"},{"tenant":"Agramonte Grocery Store Corp. (ST01)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"02/28/2030","exp_sort":"20300228","source":"E","notes":"","id":"l_65"},{"id":"l_66","tenant":"AT&T Wireless Macro Antenna (LIC1)","address":"146 Delancey St, New York, NY 10018","building":"","expiration":"03/15/2030","exp_sort":"20300315","source":"D","notes":"Derived: final option period through 3/15/30"},{"id":"l_67","tenant":"AT&T Wireless Micro Antenna (LIC2)","address":"146 Delancey St, New York, NY 10018","building":"","expiration":"03/15/2030","exp_sort":"20300315","source":"D","notes":"Derived: final option period through 3/15/30"},{"id":"l_68","tenant":"Jose Gil D/B/A Excellente Gil Cafeteria (ST02/03)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","building":"","expiration":"03/31/2030","exp_sort":"20300331","source":"D","notes":"Derived: annual steps, last 4/1/29 \u2192 exp 3/31/30"},{"id":"l_69","tenant":"Illusion Photo NYC Corp. (ST06)","address":"1631-1643 Westchester Ave, Bronx, NY 10472","building":"","expiration":"03/31/2030","exp_sort":"20300331","source":"D","notes":"Derived: steps to 4/1/29 \u2192 exp 3/31/30"},{"tenant":"Sang M. Shin & Jee Young Kim (2nd Floor)","address":"163 W 48th St, New York, NY 10019","expiration":"04/30/2030","exp_sort":"20300430","source":"E","notes":"","id":"l_70"},{"tenant":"WSM Management LLC (504)","address":"37-43 W 14th St, New York, NY 10011","expiration":"05/31/2030","exp_sort":"20300531","source":"E","notes":"","id":"l_71"},{"tenant":"1607 Food Corp. D/B/A Burger King (ST07)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"05/31/2030","exp_sort":"20300531","source":"E","notes":"","id":"l_72"},{"tenant":"IBEC Building Corporation (OFF 1)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"05/31/2030","exp_sort":"20300531","source":"E","notes":"","id":"l_73"},{"id":"l_74","tenant":"Ross Fernandez (ST05 Allerton)","address":"724-748 Allerton Ave, Bronx, NY 10467","building":"","expiration":"05/31/2030","exp_sort":"20300531","source":"D","notes":"Derived: annual steps, last 6/1/29 \u2192 exp 5/31/30"},{"tenant":"Bated Breath Theatre Company (301)","address":"37-43 W 14th St, New York, NY 10011","expiration":"06/30/2030","exp_sort":"20300630","source":"E","notes":"","id":"l_75"},{"tenant":"Diana Rodriguez D/B/A Mariel Wines & Liquor (ST01)","address":"1631-1643 Westchester Ave, Bronx, NY 10472","expiration":"06/30/2030","exp_sort":"20300630","source":"E","notes":"","id":"l_76"},{"tenant":"Off Center Ceramics Inc. (CW)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"07/31/2030","exp_sort":"20300731","source":"E","notes":"","id":"l_77"},{"tenant":"Star Billiards LLC (ST09 2nd Floor)","address":"1590-98 Westchester Ave, Bronx, NY 10472","expiration":"09/30/2030","exp_sort":"20300930","source":"E","notes":"","id":"l_78"},{"tenant":"Walgreen Eastern Co. / Rite Aid (ST01)","address":"3478-3486 Jerome Ave, Bronx, NY 10467","expiration":"10/13/2030","exp_sort":"20301013","source":"E","notes":"","id":"l_79"},{"tenant":"Trac Tech Wireless Inc. (ST06)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"10/31/2030","exp_sort":"20301031","source":"E","notes":"","id":"l_80"},{"tenant":"Art Tattoo Corp. (4th Floor)","address":"167 W 48th St, New York, NY 10036","expiration":"10/31/2030","exp_sort":"20301031","source":"E","notes":"","id":"l_81"},{"id":"l_82","tenant":"JW on Fulton Discount LLC (ST01)","address":"1242 Fulton St, Brooklyn, NY 11216","building":"","expiration":"10/31/2030","exp_sort":"20301031","source":"D","notes":"Derived: annual steps, last 11/1/29 \u2192 exp 10/31/30"},{"tenant":"Van Wagner Communications LLC (Sign License)","address":"721 7th Ave, New York, NY 10019","expiration":"12/31/2030","exp_sort":"20301231","source":"E","notes":"","id":"l_83"},{"id":"l_84","tenant":"SEK Pizza Corp. D/B/A Little Italy (ST01)","address":"167 W 48th St, New York, NY 10036","building":"","expiration":"12/31/2030","exp_sort":"20301231","source":"D","notes":"Derived: steps to 1/1/30 \u2192 exp 12/31/30"},{"tenant":"Spring Ahead Pediatric OT PLLC (503/505)","address":"37-43 W 14th St, New York, NY 10011","expiration":"04/30/2031","exp_sort":"20310430","source":"E","notes":"","id":"l_85"},{"id":"l_86","tenant":"Taibah Chicken & Biscuit LLC (ST05)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","building":"","expiration":"04/30/2031","exp_sort":"20310430","source":"D","notes":"Derived: steps to 5/1/30 \u2192 exp 4/30/31"},{"tenant":"Dr. Catharine Kaufmann Psychologist PC (Office 1)","address":"574-576 Atlantic Ave, Brooklyn, NY 11217","expiration":"05/31/2031","exp_sort":"20310531","source":"E","notes":"","id":"l_87"},{"id":"l_88","tenant":"Ricky Morty Smoke Shop Corp (Unit 4 WP)","address":"2174 White Plains Rd, Bronx, NY 10462","building":"","expiration":"05/31/2031","exp_sort":"20310531","source":"D","notes":"Derived: ~10yr from May 2021"},{"tenant":"White Plains Wireless Total Corp. (ST04)","address":"4363-73 White Plains Rd, Bronx, NY 10466","expiration":"08/31/2031","exp_sort":"20310831","source":"E","notes":"","id":"l_90"},{"id":"l_91","tenant":"Press Union Square LLC (408)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"08/31/2031","exp_sort":"20310831","source":"D","notes":"Derived: last rent step 9/1/30 \u2192 exp 8/31/31"},{"tenant":"T-Mobile / Omnipoint (Unit 1 Store)","address":"2174 White Plains Rd, Bronx, NY 10462","expiration":"09/30/2031","exp_sort":"20310930","source":"E","notes":"4th Amendment period through 9/30/31","id":"l_92"},{"tenant":"Awesome Deli Inc. D/B/A R1W","address":"60 Broadway, Brooklyn, NY 11249","expiration":"09/30/2031","exp_sort":"20310930","source":"E","notes":"","id":"l_93"},{"tenant":"Palace Skateboards Inc.","address":"307 Canal St, New York, NY 10013","expiration":"11/01/2031","exp_sort":"20311101","source":"D","notes":"15-year term from 11/2/2016","id":"l_94"},{"tenant":"727 Restaurant Inc. / Rhodes Enterprises LLC (REST)","address":"727 7th Ave, New York, NY 10019","expiration":"11/30/2031","exp_sort":"20311130","source":"E","notes":"","id":"l_95"},{"tenant":"Lash Wah Inc. (4th Floor)","address":"163 W 48th St, New York, NY 10019","expiration":"11/30/2031","exp_sort":"20311130","source":"E","notes":"","id":"l_96"},{"tenant":"Atlantic Ave Mini Mart / Croissant Food Inc. (ST01)","address":"574-576 Atlantic Ave, Brooklyn, NY 11217","expiration":"12/31/2031","exp_sort":"20311231","source":"E","notes":"","id":"l_97"},{"id":"l_98","tenant":"Om Wok Restaurant Inc. (ST06)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","building":"","expiration":"12/31/2031","exp_sort":"20311231","source":"D","notes":"Derived: steps to 1/1/31 \u2192 exp 12/31/31"},{"id":"l_99","tenant":"Jeffrey Stein Salon (11 Gansevoort)","address":"652 Hudson St, New York, NY 10014","building":"","expiration":"12/31/2031","exp_sort":"20311231","source":"D","notes":"Derived: steps to 1/1/31 \u2192 exp 12/31/31"},{"tenant":"Mitchell Gold & Bob Williams (Commercial Condo)","address":"210 Lafayette St, New York, NY 10012","expiration":"03/31/2032","exp_sort":"20320331","source":"E","notes":"","id":"l_100"},{"tenant":"The Sherwin Williams Company (STO-1 East)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"05/31/2032","exp_sort":"20320531","source":"E","notes":"","id":"l_102"},{"tenant":"Adnan Rashad Alsaidi et al. (142 Delancey)","address":"144 Delancey St, New York, NY 10002","expiration":"07/31/2032","exp_sort":"20320731","source":"E","notes":"","id":"l_103"},{"tenant":"Khalil Alahiri & Hashid Kassim - Roosevelt Convenience (ST03)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","expiration":"08/31/2032","exp_sort":"20320831","source":"E","notes":"","id":"l_104"},{"tenant":"MBO Studio Inc. (6th & 8th Floors)","address":"721 7th Ave, New York, NY 10019","expiration":"08/31/2032","exp_sort":"20320831","source":"E","notes":"","id":"l_105"},{"id":"l_106","tenant":"Local Locker Incorporated (R2W)","address":"60 Broadway, Brooklyn, NY 11249","building":"","expiration":"08/31/2032","exp_sort":"20320831","source":"D","notes":"Derived: 10yr from 9/25/2022, last step 9/1/31"},{"id":"l_107","tenant":"Kolkata Chai Co. (ST03-60 Kenmare)","address":"58 Kenmare St, New York, NY 10012","building":"","expiration":"09/30/2032","exp_sort":"20320930","source":"D","notes":"Derived: steps to 10/1/31 \u2192 exp 9/30/32"},{"tenant":"NHS Fast Food LLC (ST03)","address":"1631-1643 Westchester Ave, Bronx, NY 10472","expiration":"10/31/2032","exp_sort":"20321031","source":"E","notes":"","id":"l_108"},{"id":"l_109","tenant":"United 3490 LLC D/B/A Taco Bell (ST02)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","building":"","expiration":"11/30/2032","exp_sort":"20321130","source":"D","notes":"Derived: steps to 12/1/31 \u2192 exp 11/30/32"},{"tenant":"Astley Graham (ST03 - 4367 White Plains)","address":"4363-73 White Plains Rd, Bronx, NY 10466","expiration":"12/31/2032","exp_sort":"20321231","source":"E","notes":"","id":"l_110"},{"tenant":"Marni USA Corp. (GRND06)","address":"652 Hudson St, New York, NY 10014","expiration":"12/31/2032","exp_sort":"20321231","source":"E","notes":"","id":"l_111"},{"tenant":"Artfragment LLC (308)","address":"37-43 W 14th St, New York, NY 10011","expiration":"01/31/2033","exp_sort":"20330131","source":"E","notes":"","id":"l_112"},{"id":"l_113","tenant":"Sisley Cosmetics USA Inc. (GRND02)","address":"652 Hudson St, New York, NY 10014","building":"","expiration":"03/31/2033","exp_sort":"20330331","source":"D","notes":"Derived: steps to 4/1/32 \u2192 exp 3/31/33"},{"tenant":"Seitaro Haneda D/B/A Noppera (501)","address":"37-43 W 14th St, New York, NY 10011","expiration":"04/30/2033","exp_sort":"20330430","source":"E","notes":"","id":"l_114"},{"tenant":"78-02 Roosevelt Ave Realty / Mark Medical Care (ST05A)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","expiration":"04/30/2033","exp_sort":"20330430","source":"E","notes":"","id":"l_115"},{"tenant":"City Dollar Inc. (ST02)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","expiration":"05/31/2033","exp_sort":"20330531","source":"E","notes":"","id":"l_116"},{"tenant":"Allerton Pros Corp. D/B/A PT of the City (201)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"07/31/2033","exp_sort":"20330731","source":"E","notes":"","id":"l_117"},{"tenant":"Ichiran USA Inc. D/B/A Ichiran (Ground Floor)","address":"152 W 49th St, New York, NY 10019","expiration":"10/31/2033","exp_sort":"20331031","source":"E","notes":"","id":"l_118"},{"tenant":"Dennis Calik / Mosholu Optical Inc. (ST07A)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","expiration":"10/31/2033","exp_sort":"20331031","source":"E","notes":"","id":"l_119"},{"tenant":"Issa Coulibaly & Hawa Sidibe D/B/A Soul Food (ST07B)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","expiration":"10/31/2033","exp_sort":"20331031","source":"E","notes":"","id":"l_120"},{"tenant":"Acqua Ancien Bath NY / Aire Ancient Bath (ST01)","address":"84 Franklin St, New York, NY 10013","expiration":"12/31/2033","exp_sort":"20331231","source":"E","notes":"","id":"l_121"},{"tenant":"JustFoodForDogs LLC (ST04)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"12/31/2033","exp_sort":"20331231","source":"E","notes":"","id":"l_122"},{"id":"l_123","tenant":"Donbock Inc. (2176A White Plains)","address":"2174 White Plains Rd, Bronx, NY 10462","building":"","expiration":"02/28/2034","exp_sort":"20340228","source":"D","notes":"Derived: annual steps to 3/1/33 \u2192 exp 2/28/34"},{"tenant":"Dice & Aces Smoke Shop (ST01)","address":"4363-73 White Plains Rd, Bronx, NY 10466","expiration":"04/30/2034","exp_sort":"20340430","source":"E","notes":"","id":"l_124"},{"tenant":"Meatpacking Athletic Inc. (GRND05B)","address":"652 Hudson St, New York, NY 10014","expiration":"04/30/2034","exp_sort":"20340430","source":"E","notes":"","id":"l_125"},{"tenant":"Aminu Mohammed & Aminata Bah D/B/A African Market (ST05)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"07/31/2034","exp_sort":"20340731","source":"E","notes":"","id":"l_126"},{"tenant":"1609 Flavor Taste Corp. (ST08/09)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"08/31/2034","exp_sort":"20340831","source":"E","notes":"","id":"l_127"},{"tenant":"HEAP'S Ice Cream (ST01)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"08/31/2034","exp_sort":"20340831","source":"E","notes":"","id":"l_128"},{"tenant":"Oakberry Downtown Brooklyn LLC (ST05)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"09/30/2034","exp_sort":"20340930","source":"E","notes":"","id":"l_129"},{"tenant":"The Finish Line Inc. D/B/A JD Sports","address":"1242 Fulton St, Brooklyn, NY 11216","expiration":"12/31/2034","exp_sort":"20341231","source":"E","notes":"","id":"l_130"},{"tenant":"NYNY Physical Therapy P.C. (205)","address":"37-43 W 14th St, New York, NY 10011","expiration":"01/31/2035","exp_sort":"20350131","source":"E","notes":"","id":"l_131"},{"tenant":"Organic Snacks & More Corp. (ST01)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"01/31/2035","exp_sort":"20350131","source":"E","notes":"","id":"l_132"},{"tenant":"Jose Pedro Chimbo Loja - Estefy Nails (ST04)","address":"1631-1643 Westchester Ave, Bronx, NY 10472","expiration":"01/31/2035","exp_sort":"20350131","source":"E","notes":"","id":"l_133"},{"tenant":"Bari Desserts LLC (ST03)","address":"37-43 W 14th St, New York, NY 10011","expiration":"02/28/2035","exp_sort":"20350228","source":"E","notes":"","id":"l_134"},{"tenant":"Mahant Care LLC / Rite-Way Pharmacy (ST04)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"02/28/2035","exp_sort":"20350228","source":"E","notes":"","id":"l_135"},{"tenant":"Gnocchi on 9th Park Slope LLC (ST03)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"06/30/2035","exp_sort":"20350630","source":"E","notes":"","id":"l_136"},{"tenant":"Yankees 99 Cents Hot Pizza Inc.","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"07/31/2035","exp_sort":"20350731","source":"E","notes":"","id":"l_137"},{"id":"l_138","tenant":"City MD - City Property USA NY (ST04 - 3488 Jerome)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","building":"","expiration":"08/31/2035","exp_sort":"20350831","source":"D","notes":"Derived: steps to 9/1/34 \u2192 exp 8/31/35"},{"tenant":"Buka Derm Management LLC (ST01)","address":"1590-98 Westchester Ave, Bronx, NY 10472","expiration":"10/31/2035","exp_sort":"20351031","source":"E","notes":"","id":"l_139"},{"tenant":"MD Saiful Islam D/B/A Star Furniture (ST04)","address":"78-14 Roosevelt Ave, Jackson Heights, NY 11372","expiration":"10/31/2035","exp_sort":"20351031","source":"E","notes":"","id":"l_140"},{"tenant":"Master Class Barber NYC Corp. (ST02)","address":"169 7th Ave, Brooklyn, NY 11215","expiration":"10/31/2035","exp_sort":"20351031","source":"E","notes":"","id":"l_141"},{"tenant":"CVS Pharmacy #2437 (ST02)","address":"724-748 Allerton Ave, Bronx, NY 10467","expiration":"11/30/2035","exp_sort":"20351130","source":"E","notes":"Option periods exercised through 11/30/35","id":"l_142"},{"tenant":"Abel & Anabel Rodriguez (ST07)","address":"3488-3498 Jerome Ave, Bronx, NY 10467","expiration":"11/30/2035","exp_sort":"20351130","source":"E","notes":"","id":"l_143"},{"id":"l_144","tenant":"Satsuki Obata D/B/A Obacchi (407)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"03/31/2036","exp_sort":"20360331","source":"D","notes":"Last rent step 4/1/35 \u2192 exp 3/31/36"},{"tenant":"165 Carvel Inc. / BMG Projects Inc. (ST01)","address":"163 W 48th St, New York, NY 10019","expiration":"04/05/2036","exp_sort":"20360405","source":"D","notes":"15-year term from 4/5/2021","id":"l_145"},{"tenant":"Bobo's Soundview Bronx Inc.","address":"1590-98 Westchester Ave, Bronx, NY 10472","expiration":"04/30/2036","exp_sort":"20360430","source":"E","notes":"","id":"l_146"},{"tenant":"La Pulga Pet Grooming Incorporated (STO-2 East)","address":"60 Broadway, Brooklyn, NY 11249","expiration":"04/30/2036","exp_sort":"20360430","source":"E","notes":"","id":"l_147"},{"tenant":"City MD - City Property USA NY (ST11-13)","address":"1603-1619 Westchester Ave, Bronx, NY 10472","expiration":"05/31/2036","exp_sort":"20360531","source":"E","notes":"","id":"l_148"},{"tenant":"Liftonic LLC (13B Gansevoort)","address":"652 Hudson St, New York, NY 10014","expiration":"05/31/2036","exp_sort":"20360531","source":"E","notes":"","id":"l_149"},{"tenant":"Times Square Food Court LLC (ST03 - 152 W 49th)","address":"152 W 49th St, New York, NY 10019","expiration":"12/31/2036","exp_sort":"20361231","source":"E","notes":"","id":"l_150"},{"tenant":"Times Square Food Court LLC (ST02 - 163 W 48th)","address":"163 W 48th St, New York, NY 10019","expiration":"12/31/2036","exp_sort":"20361231","source":"E","notes":"","id":"l_151"},{"id":"l_152","tenant":"Banco Popular North America (ST04)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"01/31/2037","exp_sort":"20370131","source":"D","notes":"Derived: 10yr from commencement 2/13/26, last step 2/1/36"},{"id":"l_153","tenant":"City MD - City Property USA NY (2174 WP ST03)","address":"2174 White Plains Rd, Bronx, NY 10462","building":"","expiration":"03/31/2037","exp_sort":"20370331","source":"D","notes":"Derived: last rent step 4/1/33 + ~4yr rent period"},{"tenant":"Footlocker / JD Sports","address":"416 Knickerbocker Ave, Brooklyn, NY 11237","expiration":"05/31/2038","exp_sort":"20380531","source":"D","notes":"Extension period from rent schedule","id":"l_154"},{"id":"l_155","tenant":"MEKBROS LLC D/B/A Amy Ruth's (ST02)","address":"37-43 W 14th St, New York, NY 10011","building":"","expiration":"07/31/2039","exp_sort":"20390731","source":"D","notes":"Last rent step 8/1/38 \u2192 exp 7/31/39"},{"tenant":"FGNY 721 Seventh Ave LLC / Five Guys (Ground/2nd/Basement)","address":"721 7th Ave, New York, NY 10019","expiration":"11/30/2040","exp_sort":"20401130","source":"E","notes":"","id":"l_156"},{"tenant":"Friends of LEEP Dual Language Charter School","address":"5313-5323 5th Ave, Brooklyn, NY 11220","expiration":"06/30/2056","exp_sort":"20560630","source":"E","notes":"","id":"l_157"}];
+  var values=[["id","tenant","address","building","expiration","exp_sort","source","notes","updated_at"]];
+  seed.forEach(function(l){
+    values.push([l.id||"",l.tenant||"",l.address||"",l.building||"",
+      l.expiration||"",l.exp_sort||"",l.source||"",l.notes||"",new Date().toISOString()]);
+  });
+  await callScript({action:"seed",values:values});
+}
+
+// ── Call Apps Script for writes ──
+async function callScript(payload){
+  if(!SCRIPT_URL)throw new Error("Apps Script not configured");
+  var r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(payload)});
+  return await r.json();
+}
+
+function setSyncBar(type,msg){
+  var b=document.getElementById("sync");
+  b.textContent=msg;
+  b.className=type==="ok"?"sync":type==="err"?"sync err":"sync warn";
 }
 
 function renderStats(){
   var c={red:0,yel:0,grn:0};
   DATA.forEach(function(l){c[tier(daysLeft(l.expiration))]++;});
-  document.getElementById('stats').innerHTML=
-    '<div class="card card-total"><div class="card-lbl">Total Leases</div><div class="card-val">'+DATA.length+'</div><div class="card-desc">All properties</div></div>'+
-    '<div class="card card-red"><div class="card-lbl">Expiring Soon</div><div class="card-val">'+c.red+'</div><div class="card-desc">Under 6 months</div></div>'+
-    '<div class="card card-yel"><div class="card-lbl">Watch List</div><div class="card-val">'+c.yel+'</div><div class="card-desc">6-12 months</div></div>'+
-    '<div class="card card-grn"><div class="card-lbl">Good Standing</div><div class="card-val">'+c.grn+'</div><div class="card-desc">1+ year</div></div>';
+  document.getElementById("stats").innerHTML=
+    "<div class='card card-total'><div class='card-lbl'>Total Leases</div><div class='card-val'>"+DATA.length+"</div><div class='card-desc'>All properties</div></div>"+
+    "<div class='card card-red'><div class='card-lbl'>Expiring Soon</div><div class='card-val'>"+c.red+"</div><div class='card-desc'>Under 6 months</div></div>"+
+    "<div class='card card-yel'><div class='card-lbl'>Watch List</div><div class='card-val'>"+c.yel+"</div><div class='card-desc'>6-12 months</div></div>"+
+    "<div class='card card-grn'><div class='card-lbl'>Good Standing</div><div class='card-val'>"+c.grn+"</div><div class='card-desc'>1+ year</div></div>";
 }
 
 function populateBuildings(){
-  var seen={},sel=document.getElementById('fBuilding');
+  var seen={},sel=document.getElementById("fBuilding");
   while(sel.options.length>1)sel.remove(1);
-  DATA.forEach(function(l){
-    var a=(l.address||'').split(',')[0].trim();
-    if(a&&!seen[a]){seen[a]=1;}
-  });
-  Object.keys(seen).sort().forEach(function(k){
-    var o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);
-  });
+  DATA.forEach(function(l){var a=(l.address||"").split(",")[0].trim();if(a&&!seen[a]){seen[a]=1;}});
+  Object.keys(seen).sort().forEach(function(k){var o=document.createElement("option");o.value=k;o.textContent=k;sel.appendChild(o);});
 }
 
 function render(){
-  var q=(document.getElementById('q').value||'').toLowerCase().trim();
-  var fu=document.getElementById('fStatus').value;
-  var fb=document.getElementById('fBuilding').value;
+  var q=(document.getElementById("q").value||"").toLowerCase().trim();
+  var fu=document.getElementById("fStatus").value;
+  var fb=document.getElementById("fBuilding").value;
   var rows=DATA.filter(function(l){
-    if(q){
-      var h=((l.tenant||'')+' '+(l.address||'')+' '+(l.notes||'')).toLowerCase();
-      if(h.indexOf(q)===-1)return false;
-    }
+    if(q){var h=((l.tenant||"")+" "+(l.address||"")+" "+(l.notes||"")).toLowerCase();if(h.indexOf(q)===-1)return false;}
     if(fu&&tier(daysLeft(l.expiration))!==fu)return false;
-    if(fb&&(l.address||'').split(',')[0].trim()!==fb)return false;
+    if(fb&&(l.address||"").split(",")[0].trim()!==fb)return false;
     return true;
   });
   rows.sort(function(a,b){
     var va,vb;
-    if(sCol==='expiration'||sCol==='days'){
-      va=toISO(a.expiration)||'9999-99-99';
-      vb=toISO(b.expiration)||'9999-99-99';
-    }else{
-      va=(a[sCol]||'').toLowerCase();
-      vb=(b[sCol]||'').toLowerCase();
-    }
+    if(sCol==="expiration"||sCol==="days"){va=toISO(a.expiration)||"9999-99-99";vb=toISO(b.expiration)||"9999-99-99";}
+    else{va=(a[sCol]||"").toLowerCase();vb=(b[sCol]||"").toLowerCase();}
     return va<vb?-sDir:va>vb?sDir:0;
   });
   var shown=rows.length,total=DATA.length;
-  document.getElementById('cbar').innerHTML='Showing <strong>'+shown+'</strong> of <strong>'+total+'</strong> leases'+(shown<total?' - <span style="color:#c9a84c;font-weight:600">'+(total-shown)+' hidden</span>':'');
-  var tbody=document.getElementById('tbody');
-  if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="5"><div class="empty">No leases match your filters</div></td></tr>';
-    return;
-  }
-  var out='';
+  document.getElementById("cbar").innerHTML="Showing <strong>"+shown+"</strong> of <strong>"+total+"</strong> leases"+(shown<total?" - <span style='color:#c9a84c;font-weight:600'>"+(total-shown)+" hidden</span>":"");
+  var tbody=document.getElementById("tbody");
+  if(!rows.length){tbody.innerHTML="<tr><td colspan='5'><div class='empty'>No leases match your filters</div></td></tr>";return;}
+  var out="";
   for(var i=0;i<rows.length;i++){
     var l=rows[i],d=daysLeft(l.expiration),t=tier(d);
-    var est=l.source==='D'?'<span class="dest">[est.]</span>':'';
+    var est=l.source==="D"?"<span class='dest'>[est.]</span>":"";
     var pill;
-    if(d===null)pill='<span style="color:#bbb">No date</span>';
-    else if(d<0)pill='<span class="pill pill-red"><span class="pill-n">Expired</span></span>';
-    else if(d===0)pill='<span class="pill pill-red"><span class="pill-n">Today</span></span>';
-    else pill='<span class="pill pill-'+t+'"><span class="pill-n">'+d.toLocaleString()+'</span> <span class="pill-lbl">days</span></span>';
-    out+='<tr class="row-'+t+'">';
-    out+='<td><div class="tname">'+esc(l.tenant)+est+'</div></td>';
-    out+='<td><div class="taddr">'+esc(l.address||'')+'</div></td>';
-    out+='<td><div class="texp">'+fmtDate(l.expiration)+'</div></td>';
-    out+='<td>'+pill+'</td>';
-    out+='<td><div class="acts"><button class="btn btn-sm btn-out" data-edit="'+esc(l.id)+'">Edit</button> <button class="btn btn-sm btn-del" data-del="'+esc(l.id)+'">X</button></div></td>';
-    out+='</tr>';
+    if(d===null)pill="<span style='color:#bbb'>No date</span>";
+    else if(d<0)pill="<span class='pill pill-red'><span class='pill-n'>Expired</span></span>";
+    else if(d===0)pill="<span class='pill pill-red'><span class='pill-n'>Today</span></span>";
+    else pill="<span class='pill pill-"+t+"'><span class='pill-n'>"+d.toLocaleString()+"</span> <span class='pill-lbl'>days</span></span>";
+    out+="<tr class='row-"+t+"'>";
+    out+="<td><div class='tname'>"+esc(l.tenant)+est+"</div></td>";
+    out+="<td><div class='taddr'>"+esc(l.address||"")+"</div></td>";
+    out+="<td><div class='texp'>"+fmtDate(l.expiration)+"</div></td>";
+    out+="<td>"+pill+"</td>";
+    out+="<td><div class='acts'><button class='btn btn-sm btn-out' data-edit='"+esc(l.id)+"'>Edit</button> <button class='btn btn-sm btn-del' data-del='"+esc(l.id)+"'>X</button></div></td>";
+    out+="</tr>";
   }
   tbody.innerHTML=out;
 }
 
 function initSort(){
-  document.querySelectorAll('thead th[data-col]').forEach(function(th){
-    th.addEventListener('click',function(){
-      var col=this.getAttribute('data-col');
-      document.querySelectorAll('thead th').forEach(function(h){h.classList.remove('sorted');});
+  document.querySelectorAll("thead th[data-col]").forEach(function(th){
+    th.addEventListener("click",function(){
+      var col=this.getAttribute("data-col");
+      document.querySelectorAll("thead th").forEach(function(h){h.classList.remove("sorted");});
       if(sCol===col){sDir*=-1;}else{sCol=col;sDir=1;}
-      this.classList.add('sorted');
-      render();
+      this.classList.add("sorted");render();
     });
   });
 }
@@ -318,134 +322,124 @@ function initSort(){
 function openEdit(id){
   var l=id?DATA.find(function(x){return x.id===id;}):null;
   editId=id||null;
-  document.getElementById('mTitle').textContent=id?'Edit Lease':'Add Lease';
-  document.getElementById('mTenant').value=l?l.tenant:'';
-  document.getElementById('mAddr').value=l?l.address||'':'';
-  document.getElementById('mBldg').value=l?l.building||'':'';
-  document.getElementById('mExp').value=l?toISO(l.expiration||''):'';
-  document.getElementById('mSrc').value=l?l.source||'manual':'manual';
-  document.getElementById('mNotes').value=l?l.notes||'':'';
-  document.getElementById('ovlEdit').classList.add('open');
-  setTimeout(function(){document.getElementById('mTenant').focus();},60);
+  document.getElementById("mTitle").textContent=id?"Edit Lease":"Add Lease";
+  document.getElementById("mTenant").value=l?l.tenant:"";
+  document.getElementById("mAddr").value=l?l.address||"":"";
+  document.getElementById("mBldg").value=l?l.building||"":"";
+  document.getElementById("mExp").value=l?toISO(l.expiration||""):"";
+  document.getElementById("mSrc").value=l?l.source||"manual":"manual";
+  document.getElementById("mNotes").value=l?l.notes||"":"";
+  document.getElementById("ovlEdit").classList.add("open");
+  setTimeout(function(){document.getElementById("mTenant").focus();},60);
 }
-function closeEdit(){document.getElementById('ovlEdit').classList.remove('open');editId=null;}
+function closeEdit(){document.getElementById("ovlEdit").classList.remove("open");editId=null;}
 
 async function saveLease(){
-  var tenant=document.getElementById('mTenant').value.trim();
-  if(!tenant){toast('Tenant name required.');return;}
-  var expISO=document.getElementById('mExp').value;
+  var tenant=document.getElementById("mTenant").value.trim();
+  if(!tenant){toast("Tenant name required.");return;}
+  var expISO=document.getElementById("mExp").value;
   var rec={
-    id:editId||('l_'+Date.now()),
+    id:editId||("l_"+Date.now()),
     tenant:tenant,
-    address:document.getElementById('mAddr').value.trim(),
-    building:document.getElementById('mBldg').value.trim(),
-    expiration:expISO?fromISO(expISO):'',
-    exp_sort:expISO?expISO.replace(/-/g,''):'99999999',
-    source:document.getElementById('mSrc').value,
-    notes:document.getElementById('mNotes').value.trim()
+    address:document.getElementById("mAddr").value.trim(),
+    building:document.getElementById("mBldg").value.trim(),
+    expiration:expISO?fromISO(expISO):"",
+    exp_sort:expISO?expISO.replace(/-/g,""):"99999999",
+    source:document.getElementById("mSrc").value,
+    notes:document.getElementById("mNotes").value.trim()
   };
   try{
+    setSyncBar("warn","Saving...");
     if(editId){
-      await fetch('/api/leases/'+editId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      await callScript({action:"update",id:editId,data:rec});
     }else{
-      await fetch('/api/leases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      await callScript({action:"add",data:rec});
     }
-    closeEdit();
-    await loadData();
-    toast(editId?'Lease updated.':'Lease added.');
-  }catch(e){toast('Error: '+e.message);}
+    closeEdit();await loadData();toast(editId?"Lease updated.":"Lease added.");
+  }catch(e){toast("Error: "+e.message);setSyncBar("err","Save failed: "+e.message);}
 }
 
-function openDel(id){delId=id;document.getElementById('ovlDel').classList.add('open');}
-function closeDel(){document.getElementById('ovlDel').classList.remove('open');delId=null;}
-
+function openDel(id){delId=id;document.getElementById("ovlDel").classList.add("open");}
+function closeDel(){document.getElementById("ovlDel").classList.remove("open");delId=null;}
 async function doDelete(){
   try{
-    await fetch('/api/leases/'+delId,{method:'DELETE'});
-    closeDel();
-    await loadData();
-    toast('Lease removed.');
-  }catch(e){toast('Error: '+e.message);}
+    setSyncBar("warn","Deleting...");
+    await callScript({action:"delete",id:delId});
+    closeDel();await loadData();toast("Lease removed.");
+  }catch(e){toast("Error: "+e.message);}
 }
 
 function doExportExcel(){
-  var rows=[['Tenant','Address','Expiration','Days Left','Status','Source','Notes']];
+  var headers=["Tenant","Address","Expiration","Days Left","Status","Source","Notes"];
   var sorted=DATA.slice().sort(function(a,b){
-    var va=toISO(a.expiration)||'9999';
-    var vb=toISO(b.expiration)||'9999';
+    var va=toISO(a.expiration)||"9999",vb=toISO(b.expiration)||"9999";
     return va<vb?-1:va>vb?1:0;
   });
+  var csvRows=[headers.join(",")];
   sorted.forEach(function(l){
     var d=daysLeft(l.expiration),t=tier(d);
-    var st=d===null?'No Date':d<0?'EXPIRED':t==='red'?'EXPIRING SOON':t==='yel'?'Watch List':'Good Standing';
-    var src=l.source==='E'?'Explicit':l.source==='D'?'Estimated':'Manual';
-    var dstr=d===null?'':d<0?'EXPIRED':String(d);
-    rows.push([l.tenant||'',l.address||'',l.expiration||'',dstr,st,src,l.notes||'']);
+    var st=d===null?"No Date":d<0?"EXPIRED":t==="red"?"EXPIRING SOON":t==="yel"?"Watch List":"Good Standing";
+    var src=l.source==="E"?"Explicit":l.source==="D"?"Estimated":"Manual";
+    var dstr=d===null?"":d<0?"EXPIRED":String(d);
+    var cells=[l.tenant||"",l.address||"",l.expiration||"",dstr,st,src,l.notes||""];
+    var escaped=cells.map(function(c){
+      var s=String(c);
+      if(s.indexOf(",")>-1||s.indexOf("\n")>-1){
+        s='"'+s.split('"').join('""')+'"';
+      }
+      return s;
+    });
+    csvRows.push(escaped.join(","));
   });
-  var lines=rows.map(function(r){
-    return r.map(function(c){
-      var v=String(c).replace(/"/g,'""');
-      if(v.indexOf(',')>-1||v.indexOf('"')>-1||v.indexOf('\n')>-1)v='"'+v+'"';
-      return v;
-    }).join(',');
-  }).join('\r\n');
-  var blob=new Blob(['﻿'+lines],{type:'text/csv'});
+  var csv=csvRows.join("\r\n");
+  var blob=new Blob(["\uFEFF"+csv],{type:"text/csv"});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
+  var a=document.createElement("a");
   a.href=url;
-  a.download='Comjem_Leases_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.download="Comjem_Leases_"+new Date().toISOString().slice(0,10)+".csv";
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('Excel file downloaded.');
+  toast("Excel file downloaded.");
 }
 
 function toast(msg){
-  var e=document.getElementById('toast');
-  e.textContent=msg;e.classList.add('show');
-  clearTimeout(ttTimer);
-  ttTimer=setTimeout(function(){e.classList.remove('show');},3400);
+  var e=document.getElementById("toast");e.textContent=msg;e.classList.add("show");
+  clearTimeout(ttTimer);ttTimer=setTimeout(function(){e.classList.remove("show");},3400);
 }
-
 function scheduleRefresh(){
-  var now=new Date();
-  var ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)-now;
-  setTimeout(function(){
-    render();renderStats();
-    document.getElementById('liveDate').textContent=fmtToday();
-    scheduleRefresh();
-  },ms+500);
+  var now=new Date(),ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)-now;
+  setTimeout(function(){render();renderStats();document.getElementById("liveDate").textContent=fmtToday();scheduleRefresh();},ms+500);
 }
 
-document.addEventListener('DOMContentLoaded',function(){
-  document.getElementById('liveDate').textContent=fmtToday();
+document.addEventListener("DOMContentLoaded",function(){
+  document.getElementById("liveDate").textContent=fmtToday();
   scheduleRefresh();
   loadData();
   setInterval(loadData,30000);
   initSort();
-  document.getElementById('btnAdd').addEventListener('click',function(){openEdit(null);});
-  document.getElementById('btnRefresh').addEventListener('click',loadData);
-  document.getElementById('btnXlsx').addEventListener('click',doExportExcel);
-  document.getElementById('q').addEventListener('input',render);
-  document.getElementById('fStatus').addEventListener('change',render);
-  document.getElementById('fBuilding').addEventListener('change',render);
-  document.getElementById('btnClear').addEventListener('click',function(){
-    document.getElementById('q').value='';
-    document.getElementById('fStatus').selectedIndex=0;
-    document.getElementById('fBuilding').selectedIndex=0;
+  document.getElementById("btnAdd").addEventListener("click",function(){openEdit(null);});
+  document.getElementById("btnRefresh").addEventListener("click",loadData);
+  document.getElementById("btnXlsx").addEventListener("click",doExportExcel);
+  document.getElementById("q").addEventListener("input",render);
+  document.getElementById("fStatus").addEventListener("change",render);
+  document.getElementById("fBuilding").addEventListener("change",render);
+  document.getElementById("btnClear").addEventListener("click",function(){
+    document.getElementById("q").value="";
+    document.getElementById("fStatus").selectedIndex=0;
+    document.getElementById("fBuilding").selectedIndex=0;
     render();
   });
-  document.getElementById('btnMCancel').addEventListener('click',closeEdit);
-  document.getElementById('btnMSave').addEventListener('click',saveLease);
-  document.getElementById('btnDelCancel').addEventListener('click',closeDel);
-  document.getElementById('btnDelOk').addEventListener('click',doDelete);
-  document.getElementById('ovlEdit').addEventListener('click',function(e){if(e.target===this)closeEdit();});
-  document.getElementById('ovlDel').addEventListener('click',function(e){if(e.target===this)closeDel();});
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeEdit();closeDel();}});
-  document.getElementById('tbody').addEventListener('click',function(e){
-    var eb=e.target.closest('[data-edit]');
-    var db=e.target.closest('[data-del]');
-    if(eb)openEdit(eb.getAttribute('data-edit'));
-    if(db)openDel(db.getAttribute('data-del'));
+  document.getElementById("btnMCancel").addEventListener("click",closeEdit);
+  document.getElementById("btnMSave").addEventListener("click",saveLease);
+  document.getElementById("btnDelCancel").addEventListener("click",closeDel);
+  document.getElementById("btnDelOk").addEventListener("click",doDelete);
+  document.getElementById("ovlEdit").addEventListener("click",function(e){if(e.target===this)closeEdit();});
+  document.getElementById("ovlDel").addEventListener("click",function(e){if(e.target===this)closeDel();});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeEdit();closeDel();}});
+  document.getElementById("tbody").addEventListener("click",function(e){
+    var eb=e.target.closest("[data-edit]"),db=e.target.closest("[data-del]");
+    if(eb)openEdit(eb.getAttribute("data-edit"));
+    if(db)openDel(db.getAttribute("data-del"));
   });
 });
 </script>
