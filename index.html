@@ -215,13 +215,16 @@ async function loadData(){
       };
     });
     setSyncBar("ok","Connected to Google Sheets - "+DATA.length+" leases - changes sync for everyone");
-    var savedQ=document.getElementById("q").value;
-    var savedStatus=document.getElementById("fStatus").value;
-    var savedBldg=document.getElementById("fBldg").value;
+    var qEl=document.getElementById("q");
+    var statusEl=document.getElementById("fStatus");
+    var bldgEl=document.getElementById("fBldg");
+    var savedQ=qEl?qEl.value:"";
+    var savedStatus=statusEl?statusEl.value:"";
+    var savedBldg=bldgEl?bldgEl.value:"";
     populateBuildings();
-    if(savedQ)document.getElementById("q").value=savedQ;
-    if(savedStatus)document.getElementById("fStatus").value=savedStatus;
-    if(savedBldg)document.getElementById("fBldg").value=savedBldg;
+    if(savedQ&&qEl)qEl.value=savedQ;
+    if(savedStatus&&statusEl)statusEl.value=savedStatus;
+    if(savedBldg&&bldgEl)bldgEl.value=savedBldg;
     render();renderStats();
   }catch(e){
     setSyncBar("err","Error: "+e.message);
