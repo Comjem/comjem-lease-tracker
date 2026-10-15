@@ -337,10 +337,17 @@ function render(){
     if(fb&&(l.address||"").split(",")[0].trim()!==fb)return false;
     return true;
   });
+  var tierOrder={red:0,mtm:1,yel:2,grn:3};
   rows.sort(function(a,b){
-    var va,vb;
-    if(sCol==="expiration"||sCol==="days"){va=toISO(a.expiration)||"9999-99-99";vb=toISO(b.expiration)||"9999-99-99";}
-    else{va=(a[sCol]||"").toLowerCase();vb=(b[sCol]||"").toLowerCase();}
+    if(sCol==="expiration"||sCol==="days"){
+      var ta=a.mtm?"mtm":tier(daysLeft(a.expiration));
+      var tb=b.mtm?"mtm":tier(daysLeft(b.expiration));
+      if(ta!==tb)return(tierOrder[ta]-tierOrder[tb])*sDir;
+      if(a.mtm&&b.mtm)return 0;
+      var va=toISO(a.expiration)||"9999-99-99",vb=toISO(b.expiration)||"9999-99-99";
+      return va<vb?-sDir:va>vb?sDir:0;
+    }
+    var va=(a[sCol]||"").toLowerCase(),vb=(b[sCol]||"").toLowerCase();
     return va<vb?-sDir:va>vb?sDir:0;
   });
   var shown=rows.length,total=DATA.length;
