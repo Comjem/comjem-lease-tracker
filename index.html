@@ -127,7 +127,7 @@ td{padding:11px 14px;vertical-align:middle}
   <div class="modal">
     <h2 id="mTitle">Add Lease</h2>
     <div class="fg"><label>Tenant Name *</label><input type="text" id="mTenant"></div>
-    <div class="fg"><label>Address</label><input type="text" id="mAddr"></div>
+    <div class="fg"><label>Address</label><select id="mAddr"></select></div>
     <div class="fg"><label>Building</label><input type="text" id="mBldg"></div>
     <div class="fg"><label>Expiration Date</label><input type="date" id="mExp"></div>
     <div class="fg"><label>Source</label>
@@ -327,7 +327,12 @@ function openEdit(id){
   editId=id||null;
   document.getElementById("mTitle").textContent=id?"Edit Lease":"Add Lease";
   document.getElementById("mTenant").value=l?l.tenant:"";
-  document.getElementById("mAddr").value=l?l.address||"":"";
+  var addrSel=document.getElementById("mAddr");
+  while(addrSel.options.length>0)addrSel.remove(0);
+  var blankOpt=document.createElement("option");blankOpt.value="";blankOpt.textContent="-- Select Address --";addrSel.appendChild(blankOpt);
+  var addrSeen={};DATA.forEach(function(r){var a=(r.address||"").trim();if(a&&!addrSeen[a]){addrSeen[a]=1;}});
+  Object.keys(addrSeen).sort().forEach(function(a){var o=document.createElement("option");o.value=a;o.textContent=a;addrSel.appendChild(o);});
+  addrSel.value=l?l.address||"":"";
   document.getElementById("mBldg").value=l?l.building||"":"";
   document.getElementById("mExp").value=l?toISO(l.expiration||""):"";
   document.getElementById("mSrc").value=l?l.source||"manual":"manual";
